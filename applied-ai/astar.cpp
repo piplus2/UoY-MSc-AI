@@ -73,9 +73,8 @@ public:
 
             for (size_t i = 0; i < adj[node_idx].size(); ++i)
             {
-                vector<int> neigh = adj[node_idx][i];
-                int neigh_idx = neigh[0];
-                int neigh_g = neigh[1];
+                int neigh_idx = adj[node_idx][i].first;
+                int neigh_g = adj[node_idx][i].second;
 
                 if (!visited[neigh_idx])
                 {
