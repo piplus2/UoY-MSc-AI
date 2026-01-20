@@ -32,7 +32,7 @@ private:
 public:
     // In this implementation, we define the edge as (neigh_idx, g, h)
     template <typename Heuristic>
-    Node *findPath(vector<vector<vector<int>>> &adj, int S, int T, Heuristic h)
+    Node *findPath(vector<vector<pair<int, int>>> &adj, int S, int T, Heuristic h)
     {
         if (S == T)
         {
@@ -151,3 +151,48 @@ and a vector coords<Point> which contains the coords of all nodes:
 [&coords](int i, int j) { double dx = coords[i].x - coords[j].x;
     double dy = coords[i].y - coords[j].y; return sqrt(dx * dx + dy * dy); }
 */
+
+struct Point
+{
+    int x;
+    int y;
+};
+
+int main()
+{
+    // define 4 points in a grid
+    // 0(0,0) -- 1(1,0)
+    //   |         |
+    // 2(0,1) -- 3(1,1)
+    vector<Point> coords = {{0, 0}, {1, 0}, {0, 1}, {1, 1}};
+
+    // adjacency list (neighbour, cost)
+    vector<vector<pair<int, int>>> adj(4);
+    adj[0] = {{1, 1}, {2, 1}};
+    adj[1] = {{0, 1}, {3, 1}};
+    adj[2] = {{0, 1}, {3, 1}};
+    adj[3] = {{1, 1}, {2, 1}};
+
+    AStar solver;
+
+    // Definiamo l'euristica di Manhattan: |x1 - x2| + |y1 - y2|
+    auto manhattan = [&coords](int i, int j)
+    {
+        return abs(coords[i].x - coords[j].x) + abs(coords[i].y - coords[j].y);
+    };
+
+    Node *path = solver.findPath(adj, 0, 3, manhattan);
+
+    // Stampa del percorso
+    Node *curr = path;
+    cout << "Found path " << endl;
+    while (curr)
+    {
+        cout << "Node " << curr->id << " (Cost g: " << curr->g << ")" << endl;
+        curr = curr->next;
+    }
+
+    solver.deletePath(path);
+
+    return 0;
+}
