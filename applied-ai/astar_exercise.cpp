@@ -27,8 +27,10 @@ class AStar
 
 public:
     // In this implementation, we define the edge as (neigh_idx, g, h)
-    Node *findPath(vector<vector<pair<int, int>>> &adj, int S, int T, vector<int> h)
+    Node *findPath(vector<vector<pair<int, int>>> &adj, int S, int T, vector<int> h,
+                   vector<int> &expansion_log)
     {
+        expansion_log.clear(); // Puliamo il log all'inizio
         if (S == T)
         {
             Node *head = new Node{S, nullptr, 0};
@@ -57,6 +59,8 @@ public:
             pq.pop();
             if (visited[node_idx])
                 continue; // we skip those rubbish nodes with higher costs
+
+            expansion_log.push_back(node_idx);
 
             visited[node_idx] = true;
 
@@ -185,7 +189,15 @@ int main()
     vector<int> expansion_log;
     AStar solver;
 
-    Node *path = solver.findPath(graph, c_to_i('A'), c_to_i('K'), h_vals);
+    Node *path = solver.findPath(graph, c_to_i('A'), c_to_i('K'), h_vals, expansion_log);
+
+    cout << "Sequenza di nodi esplorati (Expansion Order):" << endl;
+    for (size_t i = 0; i < expansion_log.size(); ++i)
+    {
+        cout << i_to_c(expansion_log[i]) << (i == expansion_log.size() - 1 ? "" : " -> ");
+    }
+    cout << "\n"
+         << endl;
 
     // Stampa del percorso
     printPathConLettere(path);
