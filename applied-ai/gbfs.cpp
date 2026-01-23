@@ -10,7 +10,7 @@ class GBFS
 {
 public:
     vector<int> findShortestPath(vector<vector<int>> &graph, vector<int> &heuristic,
-                                 int root, int goal)
+                                 int root, int goal, vector<int> &expansion_order)
     {
         // La priority queue deve contenere {valore_euristico, indice_nodo}
         priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
@@ -24,11 +24,14 @@ public:
         visited[root] = true;
 
         bool found = false;
+        expansion_order.clear();
 
         while (!pq.empty())
         {
             auto [current_h, u] = pq.top();
             pq.pop();
+
+            expansion_order.push_back(u);
 
             if (u == goal)
             {
@@ -96,9 +99,19 @@ int main()
 
     // Euristiche verso 'K'
     vector<int> h_vals = {150, 100, 110, 30, 50, 110, 140, 40, 35, 20, 0};
-
+    vector<int> expansion_log;
     GBFS solver;
-    vector<int> path = solver.findShortestPath(graph, h_vals, c_to_i('A'), c_to_i('K'));
+    vector<int> path = solver.findShortestPath(graph, h_vals, c_to_i('A'), c_to_i('K'),
+                                               expansion_log);
+
+    // Stampa dell'ordine di espansione
+    cout << "Ordine di espansione (nodi visitati): " << endl;
+    for (size_t i = 0; i < expansion_log.size(); ++i)
+    {
+        cout << i_to_c(expansion_log[i]) << (i == expansion_log.size() - 1 ? "" : " -> ");
+    }
+    cout << "\n"
+         << endl;
 
     if (!path.empty())
     {
