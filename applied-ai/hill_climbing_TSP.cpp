@@ -16,6 +16,7 @@ struct Solution
 {
     vector<int> s;
     int f_val;
+    bool converged;
 };
 
 class HC
@@ -28,23 +29,24 @@ public:
         vector<int> sol = start;
         int iter = 0;
         int best_val = f(sol);
+        int noUpdate = 0;
 
         int local_best_val = INT_MAX; // initialise the curr cost to infinite
 
-        while (iter < maxIter)
+        random_device dev;
+        mt19937 rng(dev());
+        uniform_int_distribution<int> dist(0, start.size() - 1);
+
+        while (iter < maxIter && noUpdate <= (int)maxIter / 3)
         {
             // swap two random cities
-
-            vector<int> sol_idx(n);
-            iota(sol_idx.begin(), sol_idx.end(), 0);
-
-            random_device dev;
-            mt19937 rng(dev());
-            shuffle(begin(sol_idx), end(sol_idx), rng);
+            int idx1 = dist(rng);
+            int idx2 = (idx1 + 1) % n;
+            if (idx1 == idx2)
+                continue;
 
             vector<int> test_sol = sol;
-            test_sol[sol_idx[0]] = sol[sol_idx[1]];
-            test_sol[sol_idx[1]] = sol[sol_idx[0]];
+            swap(test_sol[idx1], test_sol[idx2]);
 
             int local_val = (int)f(test_sol);
 
@@ -52,6 +54,11 @@ public:
             {
                 sol = test_sol;
                 best_val = local_val; // update the best cost
+                noUpdate = 0;
+            }
+            else
+            {
+                noUpdate++;
             }
 
             iter++;
@@ -59,7 +66,7 @@ public:
 
         return Solution{
             sol,
-            best_val};
+            best_val, noUpdate < (int)maxIter / 3};
     }
 };
 
@@ -79,16 +86,18 @@ int main()
     auto F = [&](const vector<int> &path)
     {
         int totDist = 0;
-        for (size_t i = 0; i < path.size() - 1; ++i)
+        int n = path.size();
+
+        for (size_t i = 0; i < n; ++i)
         {
-            int j = i + 1;
-            if (path[i] > path[j])
-            {
-                int k = i;
-                i = j;
-                j = k;
-            }
-            totDist += distances[path[i]][path[j] - path[i] - 1];
+            int u = path[i];
+            int v = path[(i + 1) % n];
+            if (u == v)
+                continue;
+            int startNode = min(u, v);
+            int endNode = max(u, v);
+
+            totDist += distances[startNode][endNode - startNode - 1];
         }
 
         return totDist;
@@ -109,10 +118,11 @@ int main()
     cout << cities[0] << endl;
     cout << "Initial cost: " << F(cities) << endl;
 
-    Solution sol = solver.solve(cities, F, 0, 100);
-    cout << "Found solution after 100 iters: " << endl;
+    Solution sol = solver.solve(cities, F, 0, 1000);
+    cout << "Found solution after 1000 iters: " << endl;
     for (auto const &x : sol.s)
         cout << x << "->";
     cout << sol.s[0] << endl;
     cout << "Final cost = " << sol.f_val << endl;
+    cout << (sol.converged ? "Converged" : "Not-converged") << endl;
 }
