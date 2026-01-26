@@ -60,26 +60,35 @@ public:
 
         while (iter < maxIter && noUpdate <= patience)
         {
-            history.push_back(best_val);
+            bool improved = false;
 
-            // select a random city and its adjacent
-            int idx1 = dist(rng);
-            int idx2 = (idx1 + 1) % n;
-
-            swap(sol[idx1], sol[idx2]);
-            int local_val = (int)f(sol);
-
-            if (local_val < best_val)
+            for (int i = 0; i < n; ++i)
             {
-                best_val = local_val; // update the best cost
-                noUpdate = 0;
+                int j = (i + 1) % n;
+
+                swap(sol[i], sol[j]);
+                int curr_val = f(sol);
+
+                if (curr_val < best_val)
+                {
+                    best_val = curr_val;
+                    noUpdate = 0;
+                    improved = true;
+                    break; // simple hill climbing - stop at first improvement
+                }
+                else
+                {
+                    // backtracking
+                    swap(sol[i], sol[j]);
+                }
             }
-            else
+
+            if (!improved)
             {
-                // backtrack
-                swap(sol[idx1], sol[idx2]);
                 noUpdate++;
             }
+
+            history.push_back(best_val);
 
             iter++;
         }
