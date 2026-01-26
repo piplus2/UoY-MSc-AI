@@ -78,7 +78,7 @@ public:
                 }
                 else
                 {
-                    // backtracking
+                    // restore sol
                     swap(sol[i], sol[j]);
                 }
             }
