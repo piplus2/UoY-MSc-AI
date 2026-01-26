@@ -62,7 +62,7 @@ public:
         {
             history.push_back(best_val);
 
-            // swap two random cities
+            // select a random city and its adjacent
             int idx1 = dist(rng);
             int idx2 = (idx1 + 1) % n;
 
