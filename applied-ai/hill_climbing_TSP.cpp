@@ -4,6 +4,8 @@ with the Travelling Salesman example from unit 3.2.2
 */
 
 #include <vector>
+#include <fstream>
+#include <sstream>
 #include <cmath>
 #include <random>
 #include <algorithm>
@@ -12,117 +14,119 @@ with the Travelling Salesman example from unit 3.2.2
 
 using namespace std;
 
+vector<vector<int>> loadMatrix(string filename, int n)
+{
+    vector<vector<int>> matrix(n, vector<int>(n));
+    ifstream file(filename);
+    string line;
+    int row = 0;
+    while (getline(file, line) && row < n)
+    {
+        stringstream ss(line);
+        string val;
+        int col = 0;
+        while (getline(ss, val, ',') && col < n)
+        {
+            matrix[row][col] = stoi(val);
+            col++;
+        }
+        row++;
+    }
+    return matrix;
+}
+
 struct Solution
 {
-    vector<int> s;
-    int f_val;
-    bool converged;
+    int cost;
+    int iter;
+    vector<int> history;
 };
 
 class HC
 {
 public:
     template <typename F>
-    Solution solve(const vector<int> start, F f, int eps, int maxIter)
+    Solution solve(vector<int> sol, F f, int maxIter, int patience)
     {
-        int n = start.size();
-        vector<int> sol = start;
+        int n = sol.size();
         int iter = 0;
         int best_val = f(sol);
         int noUpdate = 0;
-
-        int local_best_val = INT_MAX; // initialise the curr cost to infinite
+        vector<int> history;
 
         random_device dev;
         mt19937 rng(dev());
-        uniform_int_distribution<int> dist(0, start.size() - 1);
+        uniform_int_distribution<int> dist(0, n - 1);
 
-        while (iter < maxIter && noUpdate <= (int)maxIter / 3)
+        while (iter < maxIter && noUpdate <= patience)
         {
+            history.push_back(best_val);
+
             // swap two random cities
             int idx1 = dist(rng);
             int idx2 = (idx1 + 1) % n;
-            if (idx1 == idx2)
-                continue;
 
-            vector<int> test_sol = sol;
-            swap(test_sol[idx1], test_sol[idx2]);
+            swap(sol[idx1], sol[idx2]);
+            int local_val = (int)f(sol);
 
-            int local_val = (int)f(test_sol);
-
-            if (local_val - best_val <= eps)
+            if (local_val < best_val)
             {
-                sol = test_sol;
                 best_val = local_val; // update the best cost
                 noUpdate = 0;
             }
             else
             {
+                // backtrack
+                swap(sol[idx1], sol[idx2]);
                 noUpdate++;
             }
 
             iter++;
         }
 
-        return Solution{
-            sol,
-            best_val, noUpdate < (int)maxIter / 3};
+        return Solution{best_val, iter, history};
     }
 };
 
 int main()
 {
-    int numCities = 8;
-    vector<vector<int>> distances;
-    distances.push_back({1, 3, 2, 2, 3, 5, 2});
-    distances.push_back({1, 4, 4, 4, 4, 6});
-    distances.push_back({1, 3, 2, 1, 3});
-    distances.push_back({1, 4, 3, 5});
-    distances.push_back({1, 4, 4});
-    distances.push_back({1, 2});
-    distances.push_back({1});
-    distances.push_back({});
+    int n = 50;
+    string filename = "TSP Matrix.txt";
+    auto distances = loadMatrix(filename, n);
 
     auto F = [&](const vector<int> &path)
     {
         int totDist = 0;
-        int n = path.size();
-
-        for (size_t i = 0; i < n; ++i)
+        for (int i = 0; i < n; ++i)
         {
-            int u = path[i];
-            int v = path[(i + 1) % n];
-            if (u == v)
-                continue;
-            int startNode = min(u, v);
-            int endNode = max(u, v);
-
-            totDist += distances[startNode][endNode - startNode - 1];
+            totDist += distances[path[i]][path[(i + 1) % n]];
         }
-
         return totDist;
     };
 
-    HC solver;
-    int num_tests = 5;
-
-    vector<int> cities = {0, 1, 2, 3, 4, 5, 6, 7};
     random_device dev;
     mt19937 rng(dev());
 
-    // start from random path
-    shuffle(begin(cities), end(cities), rng);
-    cout << "Starting path: " << endl;
-    for (auto const &x : cities)
-        cout << x << "->";
-    cout << cities[0] << endl;
-    cout << "Initial cost: " << F(cities) << endl;
+    // Start 10 repeats
 
-    Solution sol = solver.solve(cities, F, 0, 1000);
-    cout << "Found solution after 1000 iters: " << endl;
-    for (auto const &x : sol.s)
-        cout << x << "->";
-    cout << sol.s[0] << endl;
-    cout << "Final cost = " << sol.f_val << endl;
-    cout << (sol.converged ? "Converged" : "Not-converged") << endl;
+    for (int t = 1; t <= 10; ++t)
+    {
+        vector<int> cities(n);
+        iota(cities.begin(), cities.end(), 0);
+        // Random initialisation
+        shuffle(begin(cities), end(cities), rng);
+
+        int initCost = F(cities);
+        HC solver;
+        Solution sol = solver.solve(cities, F, 1000, 25);
+
+        ofstream outFile("run_" + to_string(t) + ".csv");
+        for (int i = 0; i < sol.history.size(); ++i)
+            outFile << i << "," << sol.history[i] << "\n";
+        outFile.close();
+
+        cout << "Test " << t << ": Initial cost = " << initCost << " -> Final cost = " << sol.cost << " reached after " << sol.iter << " iters" << endl;
+    }
+
+    return 0;
 }
