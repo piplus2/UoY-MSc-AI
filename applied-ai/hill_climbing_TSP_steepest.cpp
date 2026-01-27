@@ -9,50 +9,128 @@ deterministic approach
 #include <random>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <limits.h>
 
 using namespace std;
 
+struct Point
+{
+    double X;
+    double Y;
+};
+
+template <typename T>
 struct Solution
 {
     vector<int> s;
-    int f_val;
+    T f_val;
     bool converged;
 };
+
+vector<Point> loadCoords(string filename)
+{
+    vector<Point> matrix;
+    ifstream file(filename);
+    string line;
+    vector<double> coords;
+
+    while (getline(file, line))
+    {
+        coords.clear();
+        string word;
+        istringstream iss(line);
+        int col = 0;
+        while (col < 2)
+        {
+            getline(iss, word, ',');
+            coords.push_back(stod(word));
+            col++;
+        }
+        if (coords.size() == 2)
+        {
+            matrix.push_back({coords[0], coords[1]});
+        }
+    }
+
+    return matrix;
+}
+
+template <typename Distance>
+vector<vector<double>> calcDist(const vector<Point> &coords, Distance d)
+{
+    int n = coords.size();
+    vector<vector<double>> distMat;
+    for (size_t i = 0; i < n; ++i)
+    {
+        vector<double> citydist;
+        for (size_t j = i + 1; j < n; ++j)
+        {
+            citydist.push_back(d(coords[i], coords[j]));
+        }
+        distMat.push_back(citydist);
+    }
+
+    return distMat;
+}
+
+void savePath(const string &filename, const vector<int> &path, const vector<Point> &coords)
+{
+    ofstream outFile(filename);
+    if (!outFile.is_open())
+        return;
+
+    // Salviamo le coordinate nell'ordine del percorso
+    for (int idx : path)
+    {
+        outFile << coords[idx].X << "," << coords[idx].Y << "\n";
+    }
+
+    // Per chiudere il loop nel plot, torniamo alla prima città
+    if (!path.empty())
+    {
+        outFile << coords[path[0]].X << "," << coords[path[0]].Y << "\n";
+    }
+
+    outFile.close();
+}
 
 class HC
 {
 public:
-    template <typename F>
-    Solution solve(const vector<int> start, F f, int eps, int maxIter)
+    template <typename D, typename T>
+    Solution<double> solve(const vector<int> start, D f, T eps, int maxIter)
     {
         int n = start.size();
         vector<int> sol = start;
         int iter = 0;
-        int best_val = f(sol);
+        T best_val = f(sol);
         bool improved = true;
 
         while (iter < maxIter && improved)
         {
             improved = false;
-            int best_local_val = best_val;
+            T best_local_val = best_val;
             vector<int> best_test_sol = sol;
 
             for (int i = 0; i < n; ++i)
             {
                 for (int j = i + 1; j < n; ++j)
                 {
-                    vector<int> test_sol = sol;
-                    swap(test_sol[i], test_sol[j]);
+                    swap(sol[i], sol[j]);
 
-                    int curr_val = f(test_sol);
+                    T curr_val = f(sol);
 
-                    if (curr_val - best_local_val < eps)
+                    if (curr_val < best_local_val - eps)
                     {
                         best_local_val = curr_val;
-                        best_test_sol = test_sol;
+                        best_test_sol = sol;
                         improved = true;
                     }
+
+                    // restore old solution
+                    swap(sol[i], sol[j]);
                 }
             }
 
@@ -65,28 +143,29 @@ public:
             iter++;
         }
 
-        return Solution{
+        return Solution<double>{
             sol,
-            best_val, improved};
+            best_val, !improved || iter >= maxIter};
     }
 };
 
 int main()
 {
-    int numCities = 8;
-    vector<vector<int>> distances;
-    distances.push_back({1, 3, 2, 2, 3, 5, 2});
-    distances.push_back({1, 4, 4, 4, 4, 6});
-    distances.push_back({1, 3, 2, 1, 3});
-    distances.push_back({1, 4, 3, 5});
-    distances.push_back({1, 4, 4});
-    distances.push_back({1, 2});
-    distances.push_back({1});
-    distances.push_back({});
+    string filename = "data/TSP Matrix.csv";
+    vector<Point> coordsCities = loadCoords(filename);
+    int nCities = coordsCities.size();
 
-    auto F = [&](const vector<int> &path)
+    auto euclideanDistance = [](Point x, Point y)
     {
-        int totDist = 0;
+        return sqrt(pow((x.X - y.X), 2) + pow((x.Y - y.Y), 2));
+    };
+
+    vector<vector<double>>
+        distMat = calcDist(coordsCities, euclideanDistance);
+
+    auto F = [&](const vector<int> &path) -> double
+    {
+        double totDist = 0.0;
         int n = path.size();
 
         for (size_t i = 0; i < n; ++i)
@@ -98,7 +177,7 @@ int main()
             int startNode = min(u, v);
             int endNode = max(u, v);
 
-            totDist += distances[startNode][endNode - startNode - 1];
+            totDist += distMat[startNode][endNode - startNode - 1];
         }
 
         return totDist;
@@ -107,23 +186,40 @@ int main()
     HC solver;
     int num_tests = 5;
 
-    vector<int> cities = {0, 1, 2, 3, 4, 5, 6, 7};
-    random_device dev;
-    mt19937 rng(dev());
+    double bestCost = 99999999999.9;
 
-    // start from random path
-    shuffle(begin(cities), end(cities), rng);
-    cout << "Starting path: " << endl;
-    for (auto const &x : cities)
-        cout << x << "->";
-    cout << cities[0] << endl;
-    cout << "Initial cost: " << F(cities) << endl;
+    for (size_t t = 0; t < num_tests; ++t)
+    {
+        // Initialise the vector of cities IDs
+        vector<int> cities(nCities);
+        iota(cities.begin(), cities.end(), 0);
 
-    Solution sol = solver.solve(cities, F, 0, 1000);
-    cout << "Found solution after 1000 iters: " << endl;
-    for (auto const &x : sol.s)
-        cout << x << "->";
-    cout << sol.s[0] << endl;
-    cout << "Final cost = " << sol.f_val << endl;
-    cout << (sol.converged ? "Converged" : "Not-converged") << endl;
+        random_device dev;
+        mt19937 rng(dev());
+
+        // start from random path
+        shuffle(begin(cities), end(cities), rng);
+        cout << "Starting path: " << endl;
+        for (auto const &x : cities)
+            cout << x << "->";
+        cout << cities[0] << endl;
+        cout << "Initial cost: " << F(cities) << endl;
+
+        Solution sol = solver.solve(cities, F, 0.0, 5000);
+        cout << "Found solution after 1000 iters: " << endl;
+        for (auto const &x : sol.s)
+            cout << x << "->";
+        cout << sol.s[0] << endl;
+        cout << "Final cost = " << sol.f_val << endl;
+        cout << (sol.converged ? "Converged" : "Not-converged") << endl;
+
+        if (sol.f_val < bestCost)
+        {
+            bestCost = sol.f_val;
+            // write the initial solution
+            savePath("results/path_initial.csv", cities, coordsCities);
+            // write the found solution
+            savePath("results/path_final.csv", sol.s, coordsCities);
+        }
+    }
 }
