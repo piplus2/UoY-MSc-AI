@@ -9,11 +9,11 @@ def plot_tsp(file_init, file_final):
 
     # Plot Percorso Iniziale
     ax1.plot(df_init['X'], df_init['Y'], 'ro-', markersize=5, linewidth=1)
-    ax1.set_title(f"Percorso Iniziale (Random)")
-    
+    ax1.set_title(f"Starting Solution (Random)")
+
     # Plot Percorso Finale
     ax2.plot(df_final['X'], df_final['Y'], 'bo-', markersize=5, linewidth=1)
-    ax2.set_title(f"Percorso Finale (Steepest HC)")
+    ax2.set_title(f"Best solution (Steepest HC)")
 
     for ax in [ax1, ax2]:
         ax.set_xlabel("X")
